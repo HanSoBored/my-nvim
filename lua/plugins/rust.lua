@@ -171,7 +171,7 @@ return {
       -- ============================================================================
       -- GLOBAL KEYBINDINGS (Manual Trigger) - DI LUAR on_attach
       -- ============================================================================
-      
+
       -- Fungsi helper untuk cek apakah rustaceanvim sudah ready
       local function is_rustaceanvim_ready()
         local ok, _ = pcall(require, "rustaceanvim")
@@ -197,22 +197,22 @@ return {
           path = path,
           stop = vim.loop.os_homedir(),
         })[1]
-        
+
         if root then
           return vim.fs.dirname(root)
         end
-        
+
         -- Fallback: cari .git
         local git_root = vim.fs.find(".git", {
           upward = true,
           path = path,
           stop = vim.loop.os_homedir(),
         })[1]
-        
+
         if git_root then
           return vim.fs.dirname(git_root)
         end
-        
+
         return path
       end
 
@@ -220,27 +220,27 @@ return {
       vim.keymap.set("n", "<leader>rs", function()
         local bufnr = vim.api.nvim_get_current_buf()
         local ft = vim.bo[bufnr].filetype
-        
+
         if ft ~= "rust" then
           rust_notify("❌ Not a Rust file!", "warn")
           return
         end
-        
+
         -- Check if already started
         local clients = vim.lsp.get_active_clients({ bufnr = bufnr, name = "rust-analyzer" })
         if #clients > 0 then
           rust_notify("ℹ️ rust-analyzer already running", "info")
           return
         end
-        
+
         -- AUTO-DETECT PROJECT ROOT
         local current_file = vim.api.nvim_buf_get_name(bufnr)
         local current_dir = vim.fn.fnamemodify(current_file, ":p:h")
-        
+
         -- Cari Cargo.toml secara rekursif ke atas
         local root_dir = nil
         local dir = current_dir
-        
+
         while dir ~= "/" and dir ~= "" and dir ~= vim.loop.os_homedir() do
           local cargo_toml = dir .. "/Cargo.toml"
           if vim.fn.filereadable(cargo_toml) == 1 then
@@ -248,28 +248,30 @@ return {
             break
           end
           local parent = vim.fn.fnamemodify(dir, ":h")
-          if parent == dir then break end
+          if parent == dir then
+            break
+          end
           dir = parent
         end
-        
+
         if not root_dir then
           rust_notify("❌ No Cargo.toml found! Not in a Rust project?", "error")
           return
         end
-        
+
         -- PENTING: Change working directory ke project root
         -- Ini yang membuat cargo check berjalan di directory yang benar
         local original_cwd = vim.fn.getcwd()
         vim.cmd("lcd " .. vim.fn.fnameescape(root_dir))
-        
+
         rust_notify("Starting rust-analyzer in: " .. root_dir, "info")
-        
+
         -- Cek apakah rustaceanvim sudah loaded
         if not is_rustaceanvim_ready() then
           rust_notify("❌ rustaceanvim not loaded yet", "error")
           return
         end
-        
+
         -- Start rust-analyzer
         local ok, err = pcall(function()
           local config = vim.g.rustaceanvim
@@ -277,7 +279,7 @@ return {
           client_config.name = "rust-analyzer"
           client_config.cmd = { "rust-analyzer" }
           client_config.root_dir = root_dir
-          
+
           -- ENABLE checkOnSave only for manual start
           client_config.settings = vim.deepcopy(client_config.settings or {})
           client_config.settings["rust-analyzer"] = client_config.settings["rust-analyzer"] or {}
@@ -286,7 +288,7 @@ return {
             command = "clippy",
             extraArgs = { "--no-deps" },
           }
-          
+
           vim.lsp.start(client_config, {
             bufnr = bufnr,
             reuse_client = function(client, conf)
@@ -294,18 +296,18 @@ return {
             end,
           })
         end)
-        
+
         if not ok then
           -- Restore cwd kalau gagal
           vim.cmd("lcd " .. vim.fn.fnameescape(original_cwd))
           rust_notify("Failed to start: " .. tostring(err), "error")
           return
         end
-        
+
         -- Set buffer-local working directory supaya tetap di project root
         -- meskipun user navigate ke file lain
         vim.api.nvim_buf_set_var(bufnr, "rust_project_root", root_dir)
-        
+
         -- Autocmd untuk restore cwd saat buffer ini di-switch
         vim.api.nvim_create_autocmd("BufEnter", {
           buffer = bufnr,
@@ -316,7 +318,7 @@ return {
             end
           end,
         })
-        
+
         -- Enable nvim-lint for this buffer after LSP starts
         local ok_lint, lint = pcall(require, "lint")
         if ok_lint then
@@ -328,7 +330,6 @@ return {
         else
           rust_notify("🦀 rust-analyzer started in " .. root_dir, "info")
         end
-        
       end, { desc = "🦀 Start rust-analyzer (Auto root)", silent = true })
 
       -- Stop rust-analyzer
@@ -345,10 +346,10 @@ return {
           vim.lsp.stop_client(client.id)
         end
         rust_lsp_started = false
-        
+
         -- Disable buffer-specific linter
         vim.b[bufnr].lint = {}
-        
+
         rust_notify("🛑 rust-analyzer stopped", "info")
       end, { desc = "🛑 Stop rust-analyzer", silent = true })
 
@@ -367,7 +368,7 @@ return {
       -- ============================================================================
       -- RUST-SPECIFIC COMMANDS (Hanya jika LSP sudah running)
       -- ============================================================================
-      
+
       -- Code Action (LSP standard)
       vim.keymap.set("n", "<leader>ca", function()
         local clients = vim.lsp.get_active_clients({ bufnr = 0, name = "rust-analyzer" })
@@ -401,7 +402,7 @@ return {
           vim.notify("❌ rust-analyzer not running", vim.log.levels.WARN)
           return
         end
-        
+
         local ok, _ = pcall(vim.cmd.RustLsp, "openDocs")
         if not ok then
           vim.ui.open("https://docs.rs/")
@@ -415,7 +416,7 @@ return {
           vim.notify("❌ rust-analyzer not running", vim.log.levels.WARN)
           return
         end
-        
+
         local ok, _ = pcall(vim.cmd.RustLsp, "parentModule")
         if not ok then
           -- Fallback: go to parent file manual
@@ -442,7 +443,7 @@ return {
         local bufnr = vim.api.nvim_get_current_buf()
         local current_file = vim.api.nvim_buf_get_name(bufnr)
         local current_dir = vim.fn.fnamemodify(current_file, ":p:h")
-        
+
         local root_dir = find_rust_project_root(current_dir)
         if root_dir then
           rust_notify("Project root: " .. root_dir, "info")
@@ -486,7 +487,7 @@ return {
                 message = msg,
                 level = data.level or "info",
               })
-              
+
               if #rust_errors > 50 then
                 table.remove(rust_errors, 1)
               end
@@ -582,7 +583,6 @@ return {
       end, {})
 
       vim.keymap.set("n", "<leader>rl", "<cmd>LspLog<cr>", { desc = "View LSP Log" })
-
     end,
   },
 
@@ -643,7 +643,7 @@ return {
 
   -- Mason
   {
-    "williamboman/mason.nvim",
+    "mason-org/mason.nvim",
     opts = function(_, opts)
       vim.list_extend(opts.ensure_installed, { "codelldb", "taplo" })
     end,
@@ -718,10 +718,35 @@ return {
       })
     end,
     keys = {
-      { "<leader>tt", function() require("neotest").run.run() end, desc = "Run Test" },
-      { "<leader>tf", function() require("neotest").run.run(vim.fn.expand("%")) end, desc = "Run File" },
-      { "<leader>ts", function() require("neotest").summary.toggle() end, desc = "Test Summary" },
-      { "<leader>to", function() require("neotest").output.open() end, desc = "Test Output" },
+      {
+        "<leader>tt",
+        function()
+          require("neotest").run.run()
+        end,
+        desc = "Run Test",
+      },
+      {
+        "<leader>tf",
+        function()
+          require("neotest").run.run(vim.fn.expand("%"))
+        end,
+        desc = "Run File",
+      },
+      {
+        "<leader>ts",
+        function()
+          require("neotest").summary.toggle()
+        end,
+        desc = "Test Summary",
+      },
+      {
+        "<leader>to",
+        function()
+          require("neotest").output.open()
+        end,
+        desc = "Test Output",
+      },
     },
   },
 }
+
