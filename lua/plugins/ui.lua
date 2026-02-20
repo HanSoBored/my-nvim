@@ -1,30 +1,9 @@
 return {
-  -- Theme favorite for coding
+  -- Colorscheme
   {
     "folke/tokyonight.nvim",
-    lazy = false,
-    priority = 1000,
-    opts = {
-      style = "night",
-      transparent = false,
-      styles = {
-        comments = { italic = true },
-        keywords = { italic = true },
-        functions = {},
-        variables = {},
-        sidebars = "dark",
-        floats = "dark",
-      },
-      sidebars = { "qf", "help", "terminal", "packer", "neotest-summary" },
-      day_brightness = 0.3,
-      hide_inactive_statusline = false,
-      dim_inactive = false,
-      lualine_bold = false,
-      on_colors = function(colors)
-        colors.bg = "#1a1b26"
-        colors.bg_dark = "#16161e"
-      end,
-    },
+    lazy = true,
+    opts = { style = "night" },
   },
 
   -- Status line
@@ -33,19 +12,56 @@ return {
     event = "VeryLazy",
     opts = {
       options = {
-        theme = "tokyonight",
+        theme = "auto",
         globalstatus = true,
         disabled_filetypes = { statusline = { "dashboard", "alpha" } },
       },
       sections = {
         lualine_a = { "mode" },
-        lualine_b = { "branch", "diff", "diagnostics" },
-        lualine_c = { { "filename", path = 1 } },
-        lualine_x = { "encoding", "fileformat", "filetype" },
-        lualine_y = { "progress" },
-        lualine_z = { "location" },
+        lualine_b = { "branch" },
+        lualine_c = {
+          {
+            "diagnostics",
+            symbols = {
+              error = " ",
+              warn = " ",
+              info = " ",
+              hint = " ",
+            },
+          },
+          { "filetype", icon_only = true, separator = "", padding = { left = 1, right = 0 } },
+          { "filename", path = 1, symbols = { modified = " ", readonly = "", unnamed = "" } },
+        },
+        lualine_x = {
+          {
+            function() return require("noice").api.status.command.get() end,
+            cond = function() return package.loaded["noice"] and require("noice").api.status.command.has() end,
+          },
+          {
+            function() return require("noice").api.status.mode.get() end,
+            cond = function() return package.loaded["noice"] and require("noice").api.status.mode.has() end,
+          },
+          { require("lazy.status").updates, cond = require("lazy.status").has_updates },
+          {
+            "diff",
+            symbols = {
+              added = " ",
+              modified = " ",
+              removed = " ",
+            },
+          },
+        },
+        lualine_y = {
+          { "progress", separator = " ", padding = { left = 1, right = 0 } },
+          { "location", padding = { left = 0, right = 1 } },
+        },
+        lualine_z = {
+          function()
+            return " " .. vim.api.nvim_buf_get_option(0, "shiftwidth")
+          end,
+        },
       },
-      extensions = { "nvim-tree", "lazy", "mason", "trouble", "toggleterm" },
+      extensions = { "neo-tree", "lazy" },
     },
   },
 
@@ -59,10 +75,16 @@ return {
     },
     opts = {
       options = {
+        close_command = function(n) require("mini.bufremove").delete(n, false) end,
+        right_mouse_command = function(n) require("mini.bufremove").delete(n, false) end,
         diagnostics = "nvim_lsp",
         always_show_bufferline = false,
         diagnostics_indicator = function(_, _, diag)
-          local icons = require("lazyvim.config").icons.diagnostics
+          local icons = {
+            Error = " ",
+            Warn = " ",
+            Info = " ",
+          }
           local ret = (diag.error and icons.Error .. diag.error .. " " or "")
             .. (diag.warning and icons.Warn .. diag.warning or "")
           return vim.trim(ret)
@@ -79,255 +101,147 @@ return {
     },
   },
 
-  -- File explorer
-  {
-    "nvim-neo-tree/neo-tree.nvim",
-    branch = "v3.x",
-    dependencies = {
-      "nvim-lua/plenary.nvim",
-      "nvim-tree/nvim-web-devicons",
-      "MunifTanjim/nui.nvim",
-    },
-    keys = {
-      { "<leader>e", "<cmd>Neotree toggle<cr>", desc = "Explorer" },
-      { "<leader>o", "<cmd>Neotree focus<cr>", desc = "Focus Explorer" },
-    },
-    opts = {
-      filesystem = {
-        filtered_items = {
-          visible = true,
-          hide_dotfiles = false,
-          hide_gitignored = false,
-        },
-        follow_current_file = {
-          enabled = true,
-        },
-      },
-    },
-  },
 
-  -- Fuzzy finder
-  {
-    "nvim-telescope/telescope.nvim",
-    dependencies = {
-      "nvim-lua/plenary.nvim",
-      { "nvim-telescope/telescope-fzf-native.nvim", build = "make" },
-      "nvim-telescope/telescope-ui-select.nvim",
-    },
-    keys = {
-      { "<leader>ff", "<cmd>Telescope find_files<cr>", desc = "Find Files" },
-      { "<leader>fg", "<cmd>Telescope live_grep<cr>", desc = "Live Grep" },
-      { "<leader>fb", "<cmd>Telescope buffers<cr>", desc = "Buffers" },
-      { "<leader>fh", "<cmd>Telescope help_tags<cr>", desc = "Help Tags" },
-      { "<leader>fr", "<cmd>Telescope oldfiles<cr>", desc = "Recent Files" },
-      { "<leader>fc", "<cmd>Telescope grep_string<cr>", desc = "Find Word Under Cursor" },
-      { "<leader>fs", "<cmd>Telescope lsp_document_symbols<cr>", desc = "Document Symbols" },
-      { "<leader>fS", "<cmd>Telescope lsp_workspace_symbols<cr>", desc = "Workspace Symbols" },
-    },
-    opts = {
-      defaults = {
-        prompt_prefix = " ",
-        selection_caret = " ",
-        path_display = { "smart" },
-        file_ignore_patterns = { "node_modules", ".git/", "target/" },
-      },
-      extensions = {
-        fzf = {
-          fuzzy = true,
-          override_generic_sorter = true,
-          override_file_sorter = true,
-          case_mode = "smart_case",
-        },
-      },
-    },
-    config = function(_, opts)
-      local telescope = require("telescope")
-      telescope.setup(opts)
-      telescope.load_extension("fzf")
-      telescope.load_extension("ui-select")
-    end,
-  },
-
-  -- Terminal integration
-  {
-    "akinsho/toggleterm.nvim",
-    version = "*",
-    config = true,
-    keys = {
-      { "<leader>t", "<cmd>ToggleTerm<cr>", desc = "Terminal" },
-      { "<leader>gg", "<cmd>lua _lazygit_toggle()<cr>", desc = "LazyGit" },
-    },
-    opts = {
-      size = 20,
-      open_mapping = [[<c-\>]],
-      hide_numbers = true,
-      shade_filetypes = {},
-      shade_terminals = true,
-      shading_factor = 2,
-      start_in_insert = true,
-      insert_mappings = true,
-      persist_size = true,
-      direction = "float",
-      close_on_exit = true,
-      shell = vim.o.shell,
-      float_opts = {
-        border = "curved",
-        winblend = 0,
-        highlights = {
-          border = "Normal",
-          background = "Normal",
-        },
-      },
-    },
-  },
-
-  -- Better notification system
+  -- Notifications
   {
     "rcarriga/nvim-notify",
-    config = function()
-      require("notify").setup({
-        background_colour = "#000000",
-        fps = 60,
-        icons = {
-          DEBUG = "🔍",
-          ERROR = "❌",
-          INFO = "ℹ️",
-          TRACE = "✎",
-          WARN = "⚠️",
-        },
-        level = 2,
-        minimum_width = 50,
-        render = "wrapped-compact",
-        stages = "fade_in_slide_out",
-        time_formats = {
-          notification = "%T",
-          notification_history = "%FT%T",
-        },
-        timeout = 5000,
-        top_down = true,
-        max_width = 80,
-        max_height = 20,
-      })
-      
-      -- Override vim.notify
+    keys = {
+      {
+        "<leader>un",
+        function()
+          require("notify").dismiss({ silent = true, pending = true })
+        end,
+        desc = "Dismiss all Notifications",
+      },
+    },
+    opts = {
+      timeout = 3000,
+      max_height = function()
+        return math.floor(vim.o.lines * 0.75)
+      end,
+      max_width = function()
+        return math.floor(vim.o.columns * 0.75)
+      end,
+    },
+    init = function()
       vim.notify = require("notify")
-      
-      -- Keymap untuk notify history
-      vim.keymap.set("n", "<leader>un", function()
-        require("notify").history()
-      end, { desc = "Notify History" })
     end,
   },
 
-  -- Modern UI notifications
+  -- Better vim.ui
+  {
+    "stevearc/dressing.nvim",
+    lazy = true,
+    init = function()
+      vim.ui.select = function(...)
+        require("lazy").load({ plugins = { "dressing.nvim" } })
+        return vim.ui.select(...)
+      end
+      vim.ui.input = function(...)
+        require("lazy").load({ plugins = { "dressing.nvim" } })
+        return vim.ui.input(...)
+      end
+    end,
+  },
+
+  -- Indent guides
+  {
+    "lukas-reineke/indent-blankline.nvim",
+    event = { "BufReadPost", "BufNewFile" },
+    opts = {
+      indent = {
+        char = "│",
+        tab_char = "│",
+      },
+      scope = { enabled = false },
+      exclude = {
+        filetypes = {
+          "help",
+          "alpha",
+          "dashboard",
+          "neo-tree",
+          "Trouble",
+          "lazy",
+          "mason",
+          "notify",
+          "toggleterm",
+          "lazyterm",
+        },
+      },
+    },
+    main = "ibl",
+  },
+
+  -- Active indent guide and indent text objects
+  {
+    "nvim-mini/mini.indentscope",
+    version = false,
+    event = { "BufReadPre", "BufNewFile" },
+    opts = {
+      symbol = "│",
+      options = { try_as_border = true },
+    },
+    init = function()
+      vim.api.nvim_create_autocmd("FileType", {
+        pattern = {
+          "help",
+          "alpha",
+          "dashboard",
+          "neo-tree",
+          "Trouble",
+          "lazy",
+          "mason",
+          "notify",
+          "toggleterm",
+          "lazyterm",
+        },
+        callback = function()
+          vim.b.miniindentscope_disable = true
+        end,
+      })
+    end,
+  },
+
+  -- Noice (better UI for messages, cmdline and popupmenu)
   {
     "folke/noice.nvim",
     event = "VeryLazy",
-    dependencies = {
-      "MunifTanjim/nui.nvim",
-      "rcarriga/nvim-notify",
-    },
-    config = function()
-      require("noice").setup({
-        notify = {
-          enabled = false, -- Disable noice notification, pakai notify langsung
+    opts = {
+      lsp = {
+        override = {
+          ["vim.lsp.util.convert_input_to_markdown_lines"] = true,
+          ["vim.lsp.util.stylize_markdown"] = true,
+          ["cmp.entry.get_documentation"] = true,
         },
-        lsp = {
-          override = {
-            ["vim.lsp.util.convert_input_to_markdown_lines"] = true,
-            ["vim.lsp.util.stylize_markdown"] = true,
-            ["cmp.entry.get_documentation"] = true,
-          },
-        },
-        routes = {
-          {
-            filter = {
-              event = "msg_show",
-              any = {
-                { find = "%d+L, %d+B" },
-                { find = "; after #%d+" },
-                { find = "; before #%d+" },
-              },
+      },
+      routes = {
+        {
+          filter = {
+            event = "msg_show",
+            any = {
+              { find = "%d+L, %d+B" },
+              { find = "; after #%d+" },
+              { find = "; before #%d+" },
             },
-            view = "mini",
           },
+          view = "mini",
         },
-        presets = {
-          bottom_search = true,
-          command_palette = true,
-          long_message_to_split = true,
-          inc_rename = true,
-        },
-      })
-
-      -- Keymap untuk buka history
-      vim.keymap.set("n", "<leader>nh", "<cmd>Noice history<cr>", { desc = "Notification History" })
-      vim.keymap.set("n", "<leader>nd", "<cmd>Noice dismiss<cr>", { desc = "Dismiss Notifications" })
-      vim.keymap.set("n", "<leader>nl", "<cmd>Noice last<cr>", { desc = "Last Message" })
-      vim.keymap.set("n", "<leader>ne", "<cmd>Noice errors<cr>", { desc = "Error Messages" })
-    end,
-  },
-
-  -- Telescope error search integration
-  {
-    "nvim-telescope/telescope.nvim",
-    config = function()
-      local builtin = require("telescope.builtin")
-      local pickers = require("telescope.pickers")
-      local finders = require("telescope.finders")
-      local conf = require("telescope.config").values
-      local actions = require("telescope.actions")
-      local action_state = require("telescope.actions.state")
-
-      local function search_errors()
-        local messages = vim.fn.execute("messages")
-        local lines = vim.split(messages, "\n")
-        local errors = {}
-        
-        for _, line in ipairs(lines) do
-          if line:match("Error") or line:match("error:") or line:match("E%d+") or line:match("rust%-analyzer") then
-            table.insert(errors, line)
-          end
-        end
-        
-        if #errors == 0 then
-          vim.notify("No errors found", vim.log.levels.INFO)
-          return
-        end
-        
-        pickers.new({}, {
-          prompt_title = "Error History",
-          finder = finders.new_table({
-            results = errors,
-          }),
-          sorter = conf.generic_sorter({}),
-          attach_mappings = function(prompt_bufnr, map)
-            -- Copy ke clipboard dengan <C-y>
-            map("i", "<C-y>", function()
-              local selection = action_state.get_selected_entry()
-              CopyToClipboard(selection[1])
-              actions.close(prompt_bufnr)
-            end)
-            
-            -- Copy dengan Enter juga
-            map("i", "<CR>", function()
-              local selection = action_state.get_selected_entry()
-              CopyToClipboard(selection[1])
-              actions.close(prompt_bufnr)
-              
-              -- Buka buffer baru untuk edit
-              vim.cmd("new")
-              vim.api.nvim_buf_set_lines(0, 0, -1, false, { selection[1] })
-              vim.bo.modifiable = true
-            end)
-            
-            return true
-          end,
-        }):find()
-      end
-
-      -- Tambahkan keymap
-      vim.keymap.set("n", "<leader>se", search_errors, { desc = "Search Errors" })
-    end,
+      },
+      presets = {
+        bottom_search = true,
+        command_palette = true,
+        long_message_to_split = true,
+        inc_rename = true,
+      },
+    },
+    keys = {
+      { "<S-Enter>", function() require("noice").redirect(vim.fn.getcmdline()) end, mode = "c", desc = "Redirect Cmdline" },
+      { "<leader>snl", function() require("noice").cmd("last") end, desc = "Noice Last Message" },
+      { "<leader>snh", function() require("noice").cmd("history") end, desc = "Noice History" },
+      { "<leader>sna", function() require("noice").cmd("all") end, desc = "Noice All" },
+      { "<leader>snd", function() require("noice").cmd("dismiss") end, desc = "Dismiss All" },
+      { "<c-f>", function() if not require("noice.lsp").scroll(4) then return "<c-f>" end end, silent = true, expr = true, desc = "Scroll forward", mode = {"i", "n", "s"} },
+      { "<c-b>", function() if not require("noice.lsp").scroll(-4) then return "<c-b>" end end, silent = true, expr = true, desc = "Scroll backward", mode = {"i", "n", "s"}},
+    },
   },
 }
